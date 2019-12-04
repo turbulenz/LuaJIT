@@ -180,6 +180,19 @@ static void close_state(lua_State *L)
     g->allocf(g->allocd, G2GG(g), sizeof(GG_State), 0);
 }
 
+LUA_API void *lua_setcontextuserdata(lua_State *L, void *ud)
+{
+  global_State *g = G(L);
+  void *prev = g->userdata;
+  g->userdata = ud;
+  return prev;
+}
+LUA_API void *lua_getcontextuserdata(lua_State *L)
+{
+    global_State *g = G(L);
+    return g->userdata;
+}
+
 #if LJ_64 && !LJ_GC64 && !(defined(LUAJIT_USE_VALGRIND) && defined(LUAJIT_USE_SYSMALLOC))
 lua_State *lj_state_newstate(lua_Alloc f, void *ud)
 #else
