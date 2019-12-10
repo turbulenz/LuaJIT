@@ -495,6 +495,7 @@ static void LJ_FASTCALL recff_xpcall(jit_State *J, RecordFFData *rd)
 
 static void LJ_FASTCALL recff_getfenv(jit_State *J, RecordFFData *rd)
 {
+#error unexpected code compiling.
   TRef tr = J->base[0];
   /* Only support getfenv(0) for now. */
   if (tref_isint(tr) && tref_isk(tr) && IR(tref_ref(tr))->i == 0) {

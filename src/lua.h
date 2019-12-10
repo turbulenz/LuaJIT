@@ -111,6 +111,7 @@ typedef LUA_INTEGER lua_Integer;
 LUA_API lua_State *(lua_newstate) (lua_Alloc f, void *ud);
 LUA_API void       (lua_close) (lua_State *L);
 LUA_API lua_State *(lua_newthread) (lua_State *L);
+LUA_API void       (lua_setrestrictio)(lua_State *L, const char *);
 LUA_API void      *(lua_setcontextuserdata) (lua_State *L, void *);
 LUA_API void      *(lua_getcontextuserdata) (lua_State *L);
 LUA_API lua_CFunction (lua_atpanic) (lua_State *L, lua_CFunction panicf);

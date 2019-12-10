@@ -8,6 +8,12 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#ifndef _MSC_VER
+#include <limits.h>
+#endif
 
 #define lib_io_c
 #define LUA_LIB
@@ -43,6 +49,170 @@ typedef struct IOFileUD {
 #define IOSTDF_IOF(L, id)	((IOFileUD *)uddata(IOSTDF_UD(L, (id))))
 
 /* -- Open/close helpers -------------------------------------------------- */
+
+char *get_real_path(const char *path)
+{
+#ifdef _MSC_VER
+    return _fullpath(NULL, path, MAX_PATH);
+#else
+    return realpath(path, NULL);
+#endif
+}
+int io_check_path(lua_State *L, const char *filename, char** path)
+{
+    global_State *g = G(L);
+    if (!g->restrict_io)
+    {
+        *path = strdup("no restrict_io path set");
+        return 1;
+    }
+
+    // disallow any backslash in filename, since its a valid character in unix
+    // but a path separator on windows. stupid windows.
+    // enforce valid paths for windows, not just unix which is "free" of restrictions other than / and null-bytes
+    // also restrict to basic ascii paths.
+    size_t plen = 0;
+    static char invalid_chars[] = { '<', '>', ':', '"', '|', '?', '*' };
+    for (const char *p = filename; *p != '\0'; ++p)
+    {
+        for (size_t k = 0; k < sizeof(invalid_chars); ++k)
+        {
+            if (*p == invalid_chars[k])
+            {
+                *path = strdup("' ' not permitted in paths (safe for windows restriction)");
+                (*path)[1] = invalid_chars[k];
+                return 1;
+            }
+        }
+        if (*p == '\\')
+        {
+            *path = strdup("'\\' not permitted in paths, use '/' instead (cross-platform restriction)");
+            return 1;
+        }
+        if (*p == ' ')
+        {
+            *path = strdup("' ' not permitted in paths (simple-path restriction)");
+            return 1;
+        }
+        if (*p < 32 || *p >= 127)
+        {
+            *path = strdup("only allowing basic ASCII characters in paths (simple-path restriction)");
+            return 1;
+        }
+        ++plen;
+    }
+
+    // do manual "tidying" of the filepath (resolving '/' '.' '..') instead of using get_real_path
+    // as get_real_path will fail on file paths that dont exist, which is rather useless for creating files/directories
+
+    char *cleaned = (char *)malloc(plen + 1);
+    size_t stack[256];
+    // act as though there was a delimitor just before the start of the path (will be when joining to io root)
+    stack[0] = 0;
+    size_t stack_size = 1;
+    size_t w = 0;
+    for (size_t i = 0; i < plen; ++i)
+    {
+        int prevdel = stack[stack_size - 1] == w;
+        if (filename[i] == '/' && prevdel)
+        {
+            // strip compounded delimitors
+            continue;
+        }
+        if (prevdel && filename[i] == '.' &&
+            (i + 1 == plen || (i + 1 < plen && filename[i + 1] == '/')))
+        {
+            // strip . filenames
+            continue;
+        }
+        if (prevdel && filename[i] == '.' &&
+            i + 1 < plen && filename[i + 1] == '.' &&
+            (i + 2 == plen || (i + 2 < plen && filename[i + 2] == '/')))
+        {
+            // .. parent directory file-part
+            if (stack_size == 1)
+            {
+                free(cleaned);
+                *path = strdup("cannot drop out of the sandbox directory");
+                return 1;
+            }
+            // rewind directory stack
+            w = stack[--stack_size - 1];
+            continue;
+        }
+        if (filename[i] == '/')
+        {
+            if (stack_size == 256)
+            {
+                free(cleaned);
+                *path = strdup("stack limit reached in directory evaluation");
+                return 1;
+            }
+            stack[stack_size++] = w + 1;
+        }
+        cleaned[w++] = tolower(filename[i]);
+    }
+
+    // strip trailing /
+    if (w > 0 && cleaned[w - 1] == '/')
+    {
+        --w;
+        --stack_size;
+    }
+
+    if (w == 0)
+    {
+        free(cleaned);
+        *path = strdup("invalid filepath for sandbox. not a valid relative path (empty)");
+        return 1;
+    }
+    cleaned[w] = '\0';
+
+    size_t rlen = strlen(g->restrict_io);
+
+    // do use get_real_path on everything up to the final path element
+    // to assure the directory containing the path exists.
+    if (stack_size > 1)
+    {
+        size_t last = stack[stack_size - 1];
+        char *dir = (char *)malloc(rlen + 1 + last);
+        memcpy(dir, g->restrict_io, rlen); dir[rlen] = '/';
+        memcpy(dir + rlen + 1, cleaned, last - 1); dir[rlen + last] = '\0';
+
+        char *ndir = get_real_path(dir);
+        if (!ndir)
+        {
+            free(dir);
+            free(cleaned);
+            *path = strdup("containing directory does not exist, cannot access path");
+            return 1;
+        }
+        free(dir);
+        size_t nlen = strlen(ndir);
+
+        // ensure after get_real_path we are still within the restricted io directory (after following soft/hard links)
+        if (nlen <= rlen || 0 != memcmp(ndir, g->restrict_io, rlen))
+        {
+            free(ndir);
+            free(cleaned);
+            *path = strdup("containing director breaks out the sandbox after resolution");
+            return 1;
+        }
+
+        *path = (char *)malloc((nlen + 1) + (w - last + 1));
+        memcpy(*path, ndir, nlen); (*path)[nlen] = '/';
+        memcpy(*path + nlen + 1, cleaned + last, w - last); (*path)[(nlen + 1) + (w - last)] = '\0';
+        free(ndir);
+    }
+    else
+    {
+        *path = (char *)malloc(rlen + 1 + w + 1);
+        memcpy(*path, g->restrict_io, rlen); (*path)[rlen] = '/';
+        memcpy(*path + rlen + 1, cleaned, w); (*path)[rlen + 1 + w] = '\0';
+    }
+    free(cleaned);
+    return 0;
+}
 
 static IOFileUD *io_tofilep(lua_State *L)
 {
@@ -83,10 +253,22 @@ static IOFileUD *io_file_new(lua_State *L)
 static IOFileUD *io_file_open(lua_State *L, const char *mode)
 {
   const char *fname = strdata(lj_lib_checkstr(L, 1));
+  char *path;
+  if (0 != io_check_path(L, fname, &path))
+  {
+    const char *msg = lj_strfmt_pushf(L, "%s: %s", fname, path);
+    free(path);
+    luaL_argerror(L, 1, msg);
+    return NULL; /*unreachable*/
+  }
   IOFileUD *iof = io_file_new(L);
-  iof->fp = fopen(fname, mode);
+  iof->fp = fopen(path, mode);
+  free(path);
   if (iof->fp == NULL)
+  {
     luaL_argerror(L, 1, lj_strfmt_pushf(L, "%s: %s", fname, strerror(errno)));
+    return NULL; /*unreachable*/
+  }
   return iof;
 }
 
@@ -397,15 +579,26 @@ LJLIB_PUSH(top-2) LJLIB_SET(!)  /* Set environment. */
 LJLIB_CF(io_open)
 {
   const char *fname = strdata(lj_lib_checkstr(L, 1));
+  char *path;
+  if (0 != io_check_path(L, fname, &path))
+  {
+    setnilV(L->top++);
+    lua_pushfstring(L, "%s: %s", fname, path);
+    setintV(L->top++, EFAULT);
+    free(path);
+    return 3;
+  }
   GCstr *s = lj_lib_optstr(L, 2);
   const char *mode = s ? strdata(s) : "r";
   IOFileUD *iof = io_file_new(L);
-  iof->fp = fopen(fname, mode);
+  iof->fp = fopen(path, mode);
+  free(path);
   return iof->fp != NULL ? 1 : luaL_fileresult(L, 0, fname);
 }
 
 LJLIB_CF(io_popen)
 {
+#if 0
 #if LJ_TARGET_POSIX || (LJ_TARGET_WINDOWS && !LJ_TARGET_XBOXONE)
   const char *fname = strdata(lj_lib_checkstr(L, 1));
   GCstr *s = lj_lib_optstr(L, 2);
@@ -422,10 +615,14 @@ LJLIB_CF(io_popen)
 #else
   return luaL_error(L, LUA_QL("popen") " not supported");
 #endif
+#else
+  return luaL_error(L, "\"popen\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(io_tmpfile)
 {
+#if 0
   IOFileUD *iof = io_file_new(L);
 #if LJ_TARGET_PS3 || LJ_TARGET_PS4 || LJ_TARGET_PSVITA
   iof->fp = NULL; errno = ENOSYS;
@@ -433,6 +630,9 @@ LJLIB_CF(io_tmpfile)
   iof->fp = tmpfile();
 #endif
   return iof->fp != NULL ? 1 : luaL_fileresult(L, 0, NULL);
+#else
+  return luaL_error(L, "\"io.tmpfile\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(io_close)
@@ -519,7 +719,11 @@ static GCobj *io_std_new(lua_State *L, FILE *fp, const char *name)
   ud->udtype = UDTYPE_IO_FILE;
   /* NOBARRIER: The GCudata is new (marked white). */
   setgcref(ud->metatable, gcV(L->top-3));
+#if 0
   iof->fp = fp;
+#else
+  iof->fp = NULL;
+#endif
   iof->type = IOFILE_TYPE_STDF;
   lua_setfield(L, -2, name);
   return obj2gco(ud);
@@ -533,7 +737,9 @@ LUALIB_API int luaopen_io(lua_State *L)
   LJ_LIB_REG(L, LUA_IOLIBNAME, io);
   setgcref(G(L)->gcroot[GCROOT_IO_INPUT], io_std_new(L, stdin, "stdin"));
   setgcref(G(L)->gcroot[GCROOT_IO_OUTPUT], io_std_new(L, stdout, "stdout"));
+#if 0
   io_std_new(L, stderr, "stderr");
+#endif
   return 1;
 }
 

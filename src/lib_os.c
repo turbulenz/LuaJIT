@@ -35,10 +35,13 @@
 
 /* ------------------------------------------------------------------------ */
 
+int io_check_path(lua_State *L, const char *filename, char **path);
+
 #define LJLIB_MODULE_os
 
 LJLIB_CF(os_execute)
 {
+#if 0
 #if LJ_NO_SYSTEM
 #if LJ_52
   errno = ENOSYS;
@@ -59,23 +62,59 @@ LJLIB_CF(os_execute)
 #endif
   return 1;
 #endif
+#else
+  return luaL_error(L, "\"os.execute\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(os_remove)
 {
   const char *filename = luaL_checkstring(L, 1);
-  return luaL_fileresult(L, remove(filename) == 0, filename);
+  char *path;
+  if (0 != io_check_path(L, filename, &path))
+  {
+      setnilV(L->top++);
+      lua_pushfstring(L, "%s: %s", filename, path);
+      setintV(L->top++, EFAULT);
+      free(path);
+      return 3;
+  }
+  int ret = remove(path);
+  free(path);
+  return luaL_fileresult(L, ret == 0, filename);
 }
 
 LJLIB_CF(os_rename)
 {
   const char *fromname = luaL_checkstring(L, 1);
   const char *toname = luaL_checkstring(L, 2);
-  return luaL_fileresult(L, rename(fromname, toname) == 0, fromname);
+  char *from, *to;
+  if (0 != io_check_path(L, fromname, &from))
+  {
+      setnilV(L->top++);
+      lua_pushfstring(L, "%s: %s", fromname, from);
+      setintV(L->top++, EFAULT);
+      free(from);
+      return 3;
+  }
+  if (0 != io_check_path(L, toname, &to))
+  {
+      setnilV(L->top++);
+      lua_pushfstring(L, "%s: %s", toname, to);
+      setintV(L->top++, EFAULT);
+      free(from);
+      free(to);
+      return 3;
+  }
+  int ret = rename(from, to);
+  free(from);
+  free(to);
+  return luaL_fileresult(L, ret == 0, fromname);
 }
 
 LJLIB_CF(os_tmpname)
 {
+#if 0
 #if LJ_TARGET_PS3 || LJ_TARGET_PS4 || LJ_TARGET_PSVITA
   lj_err_caller(L, LJ_ERR_OSUNIQF);
   return 0;
@@ -97,20 +136,28 @@ LJLIB_CF(os_tmpname)
   lua_pushstring(L, buf);
   return 1;
 #endif
+#else
+  return luaL_error(L, "\"os.tmpname\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(os_getenv)
 {
+#if 0
 #if LJ_TARGET_CONSOLE
   lua_pushnil(L);
 #else
   lua_pushstring(L, getenv(luaL_checkstring(L, 1)));  /* if NULL push nil */
 #endif
   return 1;
+#else
+  return luaL_error(L, "\"os.getenv\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(os_exit)
 {
+#if 0
   int status;
   if (L->base < L->top && tvisbool(L->base))
     status = boolV(L->base) ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -120,6 +167,9 @@ LJLIB_CF(os_exit)
     lua_close(L);
   exit(status);
   return 0;  /* Unreachable. */
+#else
+  return luaL_error(L, "\"os.exit\" not permitted in sandbox");
+#endif
 }
 
 LJLIB_CF(os_clock)
@@ -262,6 +312,7 @@ LJLIB_CF(os_difftime)
 
 LJLIB_CF(os_setlocale)
 {
+#if 0
 #if LJ_TARGET_PSVITA
   lua_pushliteral(L, "C");
 #else
@@ -278,6 +329,9 @@ LJLIB_CF(os_setlocale)
   lua_pushstring(L, setlocale(opt, str));
 #endif
   return 1;
+#else
+  return luaL_error(L, "\"os.setlocale\" not permitted in sandbox");
+#endif
 }
 
 /* ------------------------------------------------------------------------ */

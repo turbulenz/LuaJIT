@@ -180,6 +180,16 @@ static void close_state(lua_State *L)
     g->allocf(g->allocd, G2GG(g), sizeof(GG_State), 0);
 }
 
+char *get_real_path(const char *path);
+LUA_API void lua_setrestrictio(lua_State *L, const char *path)
+{
+  global_State *g = G(L);
+  if (g->restrict_io)
+  {
+      free((void *)g->restrict_io);
+  }
+  g->restrict_io = path ? get_real_path(path) : NULL;
+}
 LUA_API void *lua_setcontextuserdata(lua_State *L, void *ud)
 {
   global_State *g = G(L);
@@ -208,6 +218,8 @@ LUA_API lua_State *lua_newstate(lua_Alloc f, void *ud)
   L->marked = LJ_GC_WHITE0 | LJ_GC_FIXED | LJ_GC_SFIXED;  /* Prevent free. */
   L->dummy_ffid = FF_C;
   setmref(L->glref, g);
+  g->userdata = NULL;
+  g->restrict_io = NULL;
   g->gc.currentwhite = LJ_GC_WHITE0 | LJ_GC_FIXED;
   g->strempty.marked = LJ_GC_WHITE0;
   g->strempty.gct = ~LJ_TSTR;
