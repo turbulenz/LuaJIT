@@ -560,6 +560,7 @@
 /* Compatibility with Lua 5.1 vs. 5.2. */
 #ifdef LUAJIT_ENABLE_LUA52COMPAT
 #define LJ_52			1
+#error
 #else
 #define LJ_52			0
 #endif

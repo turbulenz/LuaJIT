@@ -32,6 +32,8 @@
 #define SYMPREFIX_CF		"luaopen_%s"
 #define SYMPREFIX_BC		"luaJIT_BC_%s"
 
+int io_check_path(lua_State *L, const char *filename, char **path);
+
 #if 0
 
 #if LJ_TARGET_DLOPEN
@@ -273,12 +275,15 @@ static int lj_cf_package_unloadlib(lua_State *L)
 
 static int readable(const char *filename)
 {
+  // no io_check_path, should already be resolved by this point
+  // and we will not get relative paths here! (internal helper only)
   FILE *f = fopen(filename, "r");  /* try to open file */
   if (f == NULL) return 0;  /* open failed */
   fclose(f);
   return 1;
 }
 
+#if 0
 static const char *pushnexttemplate(lua_State *L, const char *path)
 {
   const char *l;
@@ -289,11 +294,13 @@ static const char *pushnexttemplate(lua_State *L, const char *path)
   lua_pushlstring(L, path, (size_t)(l - path));  /* template */
   return l;
 }
+#endif
 
 static const char *searchpath (lua_State *L, const char *name,
 			       const char *path, const char *sep,
 			       const char *dirsep)
 {
+#if 0
   luaL_Buffer msg;  /* to build error message */
   luaL_buffinit(L, &msg);
   if (*sep != '\0')  /* non-empty separator? */
@@ -310,8 +317,41 @@ static const char *searchpath (lua_State *L, const char *name,
   }
   luaL_pushresult(&msg);  /* create error message */
   return NULL;  /* not found */
+#else
+  // only ever called from findfile, only ever called from *loader_lua, special case.
+  name = luaL_gsub(L, name, ".", "/");
+  char *filepath;
+  if (0 != io_check_path(L, name, &filepath))
+  {
+      lua_pushfstring(L, "\n\tmodule path invalid %s: %s", name, filepath);
+      free(filepath);
+      return NULL; /*not found*/
+  }
+  if (readable(filepath)) /*does file exist and is readable? */
+  {
+      lua_pushstring(L, filepath);
+      free(filepath);
+      return lua_tostring(L, -1);
+  }
+  size_t n = strlen(filepath);
+  char *npath = (char *)malloc(n + 5);
+  memcpy(npath, filepath, n);
+  memcpy(npath + n, ".lua", 5); // include null-char in copy.
+  if (readable(npath)) /*does file exist and is readable? */
+  {
+      lua_pushstring(L, npath);
+      free(filepath);
+      free(npath);
+      return lua_tostring(L, -1);
+  }
+  lua_pushfstring(L, "\n\tfile not found %s[.lua]", filepath);
+  free(filepath);
+  free(npath);
+  return NULL; /*not found*/
+#endif
 }
 
+#if 0
 static int lj_cf_package_searchpath(lua_State *L)
 {
   const char *f = searchpath(L, luaL_checkstring(L, 1),
@@ -326,16 +366,23 @@ static int lj_cf_package_searchpath(lua_State *L)
     return 2;  /* return nil + error message */
   }
 }
+#endif
 
 static const char *findfile(lua_State *L, const char *name,
 			    const char *pname)
 {
+    // only ever called from *loader_lua, special case.
+#if 0
+  UNUSED(pname);
   const char *path;
   lua_getfield(L, LUA_ENVIRONINDEX, pname);
   path = lua_tostring(L, -1);
   if (path == NULL)
-    luaL_error(L, LUA_QL("package.%s") " must be a string", pname);
+    luaL_error(L, LUA_QL("package.%s") " must be a string", pname);*/
   return searchpath(L, name, path, ".", LUA_DIRSEP);
+#else
+  return searchpath(L, name, "", "", "");
+#endif
 }
 
 static void loaderror(lua_State *L, const char *filename)
@@ -355,6 +402,7 @@ static int lj_cf_package_loader_lua(lua_State *L)
   return 1;  /* library loaded successfully */
 }
 
+#if 0
 static int lj_cf_package_loader_c(lua_State *L)
 {
   const char *name = luaL_checkstring(L, 1);
@@ -383,6 +431,7 @@ static int lj_cf_package_loader_croot(lua_State *L)
   }
   return 1;
 }
+#endif
 
 static int lj_cf_package_loader_preload(lua_State *L)
 {
@@ -524,6 +573,7 @@ static int lj_cf_package_seeall(lua_State *L)
 
 #define AUXMARK		"\1"
 
+#if 0
 static void setpath(lua_State *L, const char *fieldname, const char *envname,
 		    const char *def, int noenv)
 {
@@ -544,10 +594,14 @@ static void setpath(lua_State *L, const char *fieldname, const char *envname,
   setprogdir(L);
   lua_setfield(L, -2, fieldname);
 }
+#endif
 
 static const luaL_Reg package_lib[] = {
   { "loadlib",	lj_cf_package_loadlib },
+#if 0
+#error lua 5.2
   { "searchpath",  lj_cf_package_searchpath },
+#endif
   { "seeall",	lj_cf_package_seeall },
   { NULL, NULL }
 };
@@ -562,15 +616,17 @@ static const lua_CFunction package_loaders[] =
 {
   lj_cf_package_loader_preload,
   lj_cf_package_loader_lua,
+#if 0
   lj_cf_package_loader_c,
   lj_cf_package_loader_croot,
+#endif
   NULL
 };
 
 LUALIB_API int luaopen_package(lua_State *L)
 {
   int i;
-  int noenv;
+  //int noenv;
   luaL_newmetatable(L, "_LOADLIB");
   lj_lib_pushcf(L, lj_cf_package_unloadlib, 1);
   lua_setfield(L, -2, "__gc");
@@ -587,10 +643,12 @@ LUALIB_API int luaopen_package(lua_State *L)
 #endif
   lua_setfield(L, -2, "loaders");
   lua_getfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
-  noenv = lua_toboolean(L, -1);
+  /*noenv = */lua_toboolean(L, -1);
   lua_pop(L, 1);
+#if 0
   setpath(L, "path", LUA_PATH, LUA_PATH_DEFAULT, noenv);
   setpath(L, "cpath", LUA_CPATH, LUA_CPATH_DEFAULT, noenv);
+#endif
   lua_pushliteral(L, LUA_PATH_CONFIG);
   lua_setfield(L, -2, "config");
   luaL_findtable(L, LUA_REGISTRYINDEX, "_LOADED", 16);
