@@ -1,0 +1,42 @@
+configuration of luajit:
+  jit disabled (memory allocation errors cause panics instead of well caught errors, dont want to crash the server!)
+  ffi disabled (pointless without jit really)
+  dynamic linking disabled
+  built amalgatized
+
+modifications/sandboxing of lua api exposed by luajit:
+  package limitations:
+    - package.searchpath (not part of lua 5.1) was exposed even without 5.2 compat flags, disabled.
+    - package.loaders for dynamic-linking are unset and dynamic-linking disabled
+    - package.path and package.cpath are unset and unused (package.path is effectively hardcoded to "?;?.lua" and unused by require calls)
+  stdin, stdout and stderr are unset and inaccesible (can be used, but are already "closed")
+    - loadfile with no argument will not function (no stdin)
+    - dofile with no argument will not function (no stdin)
+    - other cases of io package that use the "default input/output file" will not work by default (no stdin/stdout) unless overriden
+  system access is limited
+    - no io.popen; will raise an error
+    - no io.tmpfile; will raise an error
+    - no os.tmpname
+    - no os.getenv
+    - no os.exit
+    - no os.setlocale
+  file access is sandboxed and paths restricted
+    - all file paths provided to the lua standard library can only be relative paths within the sandboxed server folder
+    - basic ascii char-set only (simplicity restriction)
+    - characters <>:"|?* dissalowed (windows restriction)
+    - space character disallowed
+    - backslash dissalowed (force forwardslash valid for *nix and windows)
+    - auto lower-cased (avoid complications of "partial" case-insensitivity of windows/mac)
+    - this applies to all paths, including module path/names for require calls
+    - path restrictions/lower-casing applies only to the relative paths the lua api is called with, the server/user filesystem is unrestricted.
+
+modifications to the lua c-api:
+  - added void *(lua_setcontextuserdata)(lua_State *, void *)
+      associates an arbitrary pointer with the global lua state (returns previous set value)
+  - added void *(lua_getcontextuserdata)(lua_State *)
+      returns the pointer set above via the lua_State (set globally, so shared between coroutine lua_States)
+  - added void (lua_setrestrictio)(lua_State *, const char *)
+      sets the directory in which all file-io as specified above is restricted to
+      must be set!
+      may be an absolute path, or a relative path to the cwd
+
