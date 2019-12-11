@@ -32,10 +32,10 @@
 #define SYMPREFIX_CF		"luaopen_%s"
 #define SYMPREFIX_BC		"luaJIT_BC_%s"
 
+#if 0
+
 #if LJ_TARGET_DLOPEN
-
 #include <dlfcn.h>
-
 static void ll_unloadlib(void *lib)
 {
   dlclose(lib);
@@ -147,11 +147,15 @@ static const char *ll_bcsym(void *lib, const char *sym)
 }
 
 #else
+#endif
+
+// #else
+#endif
 
 #undef PACKAGE_LIB_FAIL
 #define PACKAGE_LIB_FAIL	"absent"
 
-#define DLMSG	"dynamic libraries not enabled; no support for target OS"
+#define DLMSG	"dynamic libraries not enabled; disabled for sandbox"
 
 static void ll_unloadlib(void *lib)
 {
@@ -178,7 +182,7 @@ static const char *ll_bcsym(void *lib, const char *sym)
   return NULL;
 }
 
-#endif
+// #endif
 
 /* ------------------------------------------------------------------------ */
 
