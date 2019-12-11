@@ -366,10 +366,24 @@ LJLIB_CF(loadfile)
 {
   GCstr *fname = lj_lib_optstr(L, 1);
   GCstr *mode = lj_lib_optstr(L, 2);
+  if (!fname)
+  {
+      lua_pushnil(L);
+      lua_pushstring(L, "stdin not accessible by sandbox");
+      return 2;
+  }
+  char *path;
+  if (0 != io_check_path(L, strdata(fname), &path))
+  {
+      lua_pushnil(L);
+      lua_pushfstring(L, "%s: %s", strdata(fname), path);
+      free(path);
+      return 2;
+  }
   int status;
   lua_settop(L, 3);  /* Ensure env arg exists. */
-  status = luaL_loadfilex(L, fname ? strdata(fname) : NULL,
-			  mode ? strdata(mode) : NULL);
+  status = luaL_loadfilex(L, path, mode ? strdata(mode) : NULL);
+  free(path);
   return load_aux(L, status, 3);
 }
 
