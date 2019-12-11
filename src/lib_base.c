@@ -40,6 +40,8 @@
 
 #define LJLIB_MODULE_base
 
+int io_check_path(lua_State *L, const char *filename, char **path);
+
 LJLIB_ASM(assert)		LJLIB_REC(.)
 {
   GCstr *s;
@@ -419,8 +421,23 @@ LJLIB_CF(dofile)
   GCstr *fname = lj_lib_optstr(L, 1);
   setnilV(L->top);
   L->top = L->base+1;
-  if (luaL_loadfile(L, fname ? strdata(fname) : NULL) != LUA_OK)
+  if (!fname)
+  {
+      return luaL_error(L, "cannot access stdin from sandbox");
+  }
+  char *path;
+  if (0 != io_check_path(L, strdata(fname), &path))
+  {
+      lua_pushfstring(L, "%s: %s", strdata(fname), path);
+      free(path);
+      return lua_error(L);
+  }
+  if (luaL_loadfile(L, path) != LUA_OK)
+  {
+    free(path);
     lua_error(L);
+  }
+  free(path);
   lua_call(L, 0, LUA_MULTRET);
   return (int)(L->top - L->base) - 1;
 }
