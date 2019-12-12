@@ -29,6 +29,9 @@ modifications/sandboxing of lua api exposed by luajit:
     - auto lower-cased (avoid complications of "partial" case-insensitivity of windows/mac)
     - this applies to all paths, including module path/names for require calls
     - path restrictions/lower-casing applies only to the relative paths the lua api is called with, the server/user filesystem is unrestricted.
+  jit and debug libraries uncompiled/unavailable
+    - jit is disabled anyways
+    - debug is dangerous.. can modify metatables of c-userdata objects etc
 
 modifications to the lua c-api:
   - added void *(lua_setcontextuserdata)(lua_State *, void *)
@@ -39,4 +42,5 @@ modifications to the lua c-api:
       sets the directory in which all file-io as specified above is restricted to
       must be set!
       may be an absolute path, or a relative path to the cwd
+  - debug.traceback exposed as a c function debug_traceback to be used by c-api only as a pushed cfunction to the lua stack, eg for pcall's
 

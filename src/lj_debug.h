@@ -37,7 +37,9 @@ LJ_FUNC const char *lj_debug_funcname(lua_State *L, cTValue *frame,
 LJ_FUNC void lj_debug_shortname(char *out, GCstr *str, BCLine line);
 LJ_FUNC void lj_debug_addloc(lua_State *L, const char *msg,
 			     cTValue *frame, cTValue *nextframe);
+#if 0
 LJ_FUNC void lj_debug_pushloc(lua_State *L, GCproto *pt, BCPos pc);
+#endif
 LJ_FUNC int lj_debug_getinfo(lua_State *L, const char *what, lj_Debug *ar,
 			     int ext);
 #if LJ_HASPROFILE

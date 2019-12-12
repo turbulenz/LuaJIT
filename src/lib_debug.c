@@ -18,7 +18,7 @@
 #include "lj_err.h"
 #include "lj_debug.h"
 #include "lj_lib.h"
-
+#if 0
 /* ------------------------------------------------------------------------ */
 
 #define LJLIB_MODULE_debug
@@ -84,7 +84,7 @@ static void settabsb(lua_State *L, const char *i, int v)
   lua_pushboolean(L, v);
   lua_setfield(L, -2, i);
 }
-
+#endif
 static lua_State *getthread(lua_State *L, int *arg)
 {
   if (L->base < L->top && tvisthread(L->base)) {
@@ -95,7 +95,7 @@ static lua_State *getthread(lua_State *L, int *arg)
     return L;
   }
 }
-
+#if 0
 static void treatstackoption(lua_State *L, lua_State *L1, const char *fname)
 {
   if (L == L1) {
@@ -375,13 +375,17 @@ LJLIB_CF(debug_debug)
     lua_settop(L, 0);  /* remove eventual returns */
   }
 }
-
+#endif
 /* ------------------------------------------------------------------------ */
 
 #define LEVELS1	12	/* size of the first part of the stack */
 #define LEVELS2	10	/* size of the second part of the stack */
 
+#if 0
 LJLIB_CF(debug_traceback)
+#endif
+// exposing as a standard c-function only.
+int debug_traceback(lua_State *L)
 {
   int arg;
   lua_State *L1 = getthread(L, &arg);
@@ -393,6 +397,7 @@ LJLIB_CF(debug_traceback)
   return 1;
 }
 
+#if 0
 /* ------------------------------------------------------------------------ */
 
 #include "lj_libdef.h"
@@ -402,4 +407,4 @@ LUALIB_API int luaopen_debug(lua_State *L)
   LJ_LIB_REG(L, LUA_DBLIBNAME, debug);
   return 1;
 }
-
+#endif

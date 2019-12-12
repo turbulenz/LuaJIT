@@ -1,3 +1,5 @@
+#if 0 // dont even compile it in!
+
 /*
 ** JIT library.
 ** Copyright (C) 2005-2017 Mike Pall. See Copyright Notice in luajit.h
@@ -775,3 +777,4 @@ LUALIB_API int luaopen_jit(lua_State *L)
   return 1;
 }
 
+#endif

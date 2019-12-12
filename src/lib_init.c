@@ -23,14 +23,15 @@ static const luaL_Reg lj_lib_load[] = {
   { LUA_OSLIBNAME,	luaopen_os },
   { LUA_STRLIBNAME,	luaopen_string },
   { LUA_MATHLIBNAME,	luaopen_math },
-  { LUA_DBLIBNAME,	luaopen_debug },
+  // {  LUA_DBLIBNAME,	luaopen_debug }, // forcing debug lib not to be available.
   { LUA_BITLIBNAME,	luaopen_bit },
-  { LUA_JITLIBNAME,	luaopen_jit },
+  // { LUA_JITLIBNAME,	luaopen_jit }, forcing jit lib not to be available
   { NULL,		NULL }
 };
 
 static const luaL_Reg lj_lib_preload[] = {
 #if LJ_HASFFI
+#error
   { LUA_FFILIBNAME,	luaopen_ffi },
 #endif
   { NULL,		NULL }

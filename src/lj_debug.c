@@ -367,6 +367,7 @@ void lj_debug_addloc(lua_State *L, const char *msg,
 }
 
 /* Push location string for a bytecode position to Lua stack. */
+#if 0
 void lj_debug_pushloc(lua_State *L, GCproto *pt, BCPos pc)
 {
   GCstr *name = proto_chunkname(pt);
@@ -391,6 +392,7 @@ void lj_debug_pushloc(lua_State *L, GCproto *pt, BCPos pc)
     lj_strfmt_pushf(L, "\"%s\":%d", s, line);
   }
 }
+#endif
 
 /* -- Public debug API ---------------------------------------------------- */
 
