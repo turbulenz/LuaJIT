@@ -35,7 +35,7 @@
 
 /* ------------------------------------------------------------------------ */
 
-int io_check_path(lua_State *L, const char *filename, char **path);
+int io_check_path(lua_State *L, const char *filename, char **path, int allowDotDirectory);
 
 #define LJLIB_MODULE_os
 
@@ -71,7 +71,7 @@ LJLIB_CF(os_remove)
 {
   const char *filename = luaL_checkstring(L, 1);
   char *path;
-  if (0 != io_check_path(L, filename, &path))
+  if (0 != io_check_path(L, filename, &path, 0))
   {
       setnilV(L->top++);
       lua_pushfstring(L, "%s: %s", filename, path);
@@ -89,7 +89,7 @@ LJLIB_CF(os_rename)
   const char *fromname = luaL_checkstring(L, 1);
   const char *toname = luaL_checkstring(L, 2);
   char *from, *to;
-  if (0 != io_check_path(L, fromname, &from))
+  if (0 != io_check_path(L, fromname, &from, 0))
   {
       setnilV(L->top++);
       lua_pushfstring(L, "%s: %s", fromname, from);
@@ -97,7 +97,7 @@ LJLIB_CF(os_rename)
       free(from);
       return 3;
   }
-  if (0 != io_check_path(L, toname, &to))
+  if (0 != io_check_path(L, toname, &to, 0))
   {
       setnilV(L->top++);
       lua_pushfstring(L, "%s: %s", toname, to);

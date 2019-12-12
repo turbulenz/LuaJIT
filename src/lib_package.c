@@ -32,7 +32,7 @@
 #define SYMPREFIX_CF		"luaopen_%s"
 #define SYMPREFIX_BC		"luaJIT_BC_%s"
 
-int io_check_path(lua_State *L, const char *filename, char **path);
+int io_check_path(lua_State *L, const char *filename, char **path, int allowDotDirectory);
 
 #if 0
 
@@ -321,7 +321,7 @@ static const char *searchpath (lua_State *L, const char *name,
   // only ever called from findfile, only ever called from *loader_lua, special case.
   name = luaL_gsub(L, name, ".", "/");
   char *filepath;
-  if (0 != io_check_path(L, name, &filepath))
+  if (0 != io_check_path(L, name, &filepath, 0))
   {
       lua_pushfstring(L, "\n\tmodule path invalid %s: %s", name, filepath);
       free(filepath);

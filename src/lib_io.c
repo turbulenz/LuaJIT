@@ -58,7 +58,7 @@ char *get_real_path(const char *path)
     return realpath(path, NULL);
 #endif
 }
-int io_check_path(lua_State *L, const char *filename, char** path)
+int io_check_path(lua_State *L, const char *filename, char** path, int allowDotDirectory)
 {
     global_State *g = G(L);
     if (!g->restrict_io)
@@ -163,8 +163,16 @@ int io_check_path(lua_State *L, const char *filename, char** path)
     if (w == 0)
     {
         free(cleaned);
-        *path = strdup("invalid filepath for sandbox. not a valid relative path (empty)");
-        return 1;
+        if (allowDotDirectory)
+        {
+            *path = strdup(g->restrict_io);
+            return 0;
+        }
+        else
+        {
+            *path = strdup("invalid filepath for sandbox. not a valid relative path (empty)");
+            return 1;
+        }
     }
     cleaned[w] = '\0';
 
@@ -254,7 +262,7 @@ static IOFileUD *io_file_open(lua_State *L, const char *mode)
 {
   const char *fname = strdata(lj_lib_checkstr(L, 1));
   char *path;
-  if (0 != io_check_path(L, fname, &path))
+  if (0 != io_check_path(L, fname, &path, 0))
   {
     const char *msg = lj_strfmt_pushf(L, "%s: %s", fname, path);
     free(path);
@@ -580,7 +588,7 @@ LJLIB_CF(io_open)
 {
   const char *fname = strdata(lj_lib_checkstr(L, 1));
   char *path;
-  if (0 != io_check_path(L, fname, &path))
+  if (0 != io_check_path(L, fname, &path, 0))
   {
     setnilV(L->top++);
     lua_pushfstring(L, "%s: %s", fname, path);
