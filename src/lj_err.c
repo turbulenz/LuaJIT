@@ -826,6 +826,15 @@ LUALIB_API int luaL_argerror(lua_State *L, int narg, const char *msg)
   err_argmsg(L, narg, msg);
   return 0;  /* unreachable */
 }
+LUALIB_API int luaL_argerrorv(lua_State *L, int narg, const char *msg, ...)
+{
+  va_list argp;
+  va_start(argp, msg);
+  msg = lj_strfmt_pushvf(L, msg, argp);
+  va_end(argp);
+  err_argmsg(L, narg, msg);
+  return 0;  /* unreachable */
+}
 
 LUALIB_API int luaL_typerror(lua_State *L, int narg, const char *xname)
 {

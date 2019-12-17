@@ -20,6 +20,7 @@ modifications/sandboxing of lua api exposed by luajit:
     - no os.getenv
     - no os.exit
     - no os.setlocale
+  collectgarbage call is available, but with no arguments, will only ever do a full gc collect.
   file access is sandboxed and paths restricted
     - all file paths provided to the lua standard library can only be relative paths within the sandboxed server folder
     - basic ascii char-set only (simplicity restriction)
@@ -43,4 +44,5 @@ modifications to the lua c-api:
       must be set!
       may be an absolute path, or a relative path to the cwd
   - debug.traceback exposed as a c function debug_traceback to be used by c-api only as a pushed cfunction to the lua stack, eg for pcall's
+  - added lua_argerrorv var-args version allowing the extra message to be a printf style format string using the extra arguments.
 

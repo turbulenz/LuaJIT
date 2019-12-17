@@ -466,6 +466,7 @@ LJLIB_CF(gcinfo)
 
 LJLIB_CF(collectgarbage)
 {
+#if 0
   int opt = lj_lib_checkopt(L, 1, LUA_GCCOLLECT,  /* ORDER LUA_GC* */
     "\4stop\7restart\7collect\5count\1\377\4step\10setpause\12setstepmul\1\377\11isrunning");
   int32_t data = lj_lib_optint(L, 2, 0);
@@ -480,6 +481,9 @@ LJLIB_CF(collectgarbage)
   }
   L->top++;
   return 1;
+#endif
+  lua_gc(L, LUA_GCCOLLECT, 0);
+  return 0;
 }
 
 /* -- Base library: miscellaneous functions ------------------------------- */
