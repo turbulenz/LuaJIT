@@ -30,7 +30,9 @@
 #define GCSTEPSIZE	1024u
 #define GCSWEEPMAX	40
 #define GCSWEEPCOST	10
-#define GCFINALIZECOST	100
+
+//assume much cheaper than standard! (standard = 100)
+#define GCFINALIZECOST	10
 
 /* Macros to set GCobj colors and flags. */
 #define white2gray(x)		((x)->gch.marked &= (uint8_t)~LJ_GC_WHITES)
