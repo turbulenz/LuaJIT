@@ -50,20 +50,33 @@ typedef struct IOFileUD {
 
 /* -- Open/close helpers -------------------------------------------------- */
 
+#ifdef _MSC_VER
+#include <stdlib.h>
+#endif
+
 char *get_real_path(const char *path)
 {
 #ifdef _MSC_VER
-    return _fullpath(NULL, path, MAX_PATH);
+    return _fullpath(NULL, path, _MAX_PATH);
 #else
     return realpath(path, NULL);
 #endif
 }
+
+char *fakestrdup(const char *k)
+{
+    // msvc doesnt like strdup..
+    char *ret = (char *)malloc(strlen(k) + 1);
+    strcpy(ret, k);
+    return ret;
+}
+
 int io_check_path(lua_State *L, const char *filename, char** path, int allowDotDirectory)
 {
     global_State *g = G(L);
     if (!g->restrict_io)
     {
-        *path = strdup("no restrict_io path set");
+        *path = fakestrdup("no restrict_io path set");
         return 1;
     }
 
@@ -79,24 +92,24 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
         {
             if (*p == invalid_chars[k])
             {
-                *path = strdup("' ' not permitted in paths (safe for windows restriction)");
+                *path = fakestrdup("' ' not permitted in paths (safe for windows restriction)");
                 (*path)[1] = invalid_chars[k];
                 return 1;
             }
         }
         if (*p == '\\')
         {
-            *path = strdup("'\\' not permitted in paths, use '/' instead (cross-platform restriction)");
+            *path = fakestrdup("'\\' not permitted in paths, use '/' instead (cross-platform restriction)");
             return 1;
         }
         if (*p == ' ')
         {
-            *path = strdup("' ' not permitted in paths (simple-path restriction)");
+            *path = fakestrdup("' ' not permitted in paths (simple-path restriction)");
             return 1;
         }
         if (*p < 32 || *p >= 127)
         {
-            *path = strdup("only allowing basic ASCII characters in paths (simple-path restriction)");
+            *path = fakestrdup("only allowing basic ASCII characters in paths (simple-path restriction)");
             return 1;
         }
         ++plen;
@@ -133,7 +146,7 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
             if (stack_size == 1)
             {
                 free(cleaned);
-                *path = strdup("cannot drop out of the sandbox directory");
+                *path = fakestrdup("cannot drop out of the sandbox directory");
                 return 1;
             }
             // rewind directory stack
@@ -145,7 +158,7 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
             if (stack_size == 256)
             {
                 free(cleaned);
-                *path = strdup("stack limit reached in directory evaluation");
+                *path = fakestrdup("stack limit reached in directory evaluation");
                 return 1;
             }
             stack[stack_size++] = w + 1;
@@ -165,12 +178,12 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
         free(cleaned);
         if (allowDotDirectory)
         {
-            *path = strdup(g->restrict_io);
+            *path = fakestrdup(g->restrict_io);
             return 0;
         }
         else
         {
-            *path = strdup("invalid filepath for sandbox. not a valid relative path (empty)");
+            *path = fakestrdup("invalid filepath for sandbox. not a valid relative path (empty)");
             return 1;
         }
     }
@@ -192,7 +205,7 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
         {
             free(dir);
             free(cleaned);
-            *path = strdup("containing directory does not exist, cannot access path");
+            *path = fakestrdup("containing directory does not exist, cannot access path");
             return 1;
         }
         free(dir);
@@ -203,7 +216,7 @@ int io_check_path(lua_State *L, const char *filename, char** path, int allowDotD
         {
             free(ndir);
             free(cleaned);
-            *path = strdup("containing director breaks out the sandbox after resolution");
+            *path = fakestrdup("containing director breaks out the sandbox after resolution");
             return 1;
         }
 
