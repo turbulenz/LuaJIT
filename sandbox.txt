@@ -33,6 +33,7 @@ modifications/sandboxing of lua api exposed by luajit:
   jit and debug libraries uncompiled/unavailable
     - jit is disabled anyways
     - debug is dangerous.. can modify metatables of c-userdata objects etc
+  DO expose the ability to set a __pairs/__ipairs metamethod (subset of the luajit 5.2 compatibility modifications)
 
 modifications to the lua c-api:
   - added void *(lua_setcontextuserdata)(lua_State *, void *)
